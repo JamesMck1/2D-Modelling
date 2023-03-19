@@ -92,14 +92,14 @@ class x_interface(interface): #interface in the x-plane
         
     def wavespeeds(self): #calculate wavespeeds
         
-        wavespeeds = HLL.Wavespeeds(self.g, self.left_cell.depth, self.right_cell.depth, self.left_cell.x_velocity, self.right_cell.x_velocity)
+        wavespeeds = HLL.Wavespeeds(self.g, self.left_cell.depth, self.right_cell.depth, self.left_cell.y_velocity, self.right_cell.y_velocity)
     
         self.left_wavespeed = wavespeeds[0]
         self.right_wavespeed = wavespeeds[1]
     
     def HLL_Solver(self): #use a HLL approximate Riemann solver to resolve numerical fluxes
         
-        fluxes = HLL.HLL_Solver(self.g, self.left_cell.x_velocity, self.right_cell.x_velocity, self.left_cell.depth, self.right_cell.depth,
+        fluxes = HLL.HLL_Solver(self.g, self.left_cell.y_velocity, self.right_cell.y_velocity, self.left_cell.depth, self.right_cell.depth,
                                 self.left_wavespeed, self.right_wavespeed)
         
         self.depth_flux = fluxes[0]
@@ -112,14 +112,14 @@ class y_interface(interface): #interface in the y-plane
         
     def wavespeeds(self): #calculate wavespeeds
         
-        wavespeeds = HLL.Wavespeeds(self.g, self.left_cell.depth, self.right_cell.depth, self.left_cell.y_velocity, self.right_cell.y_velocity)
+        wavespeeds = HLL.Wavespeeds(self.g, self.left_cell.depth, self.right_cell.depth, self.left_cell.x_velocity, self.right_cell.x_velocity)
     
         self.left_wavespeed = wavespeeds[0]
         self.right_wavespeed = wavespeeds[1]
     
     def HLL_Solver(self): #use a HLL approximate Riemann solver to resolve numerical fluxes
         
-        fluxes = HLL.HLL_Solver(self.g, self.left_cell.y_velocity, self.right_cell.y_velocity, self.left_cell.depth, self.right_cell.depth,
+        fluxes = HLL.HLL_Solver(self.g, self.left_cell.x_velocity, self.right_cell.x_velocity, self.left_cell.depth, self.right_cell.depth,
                                 self.left_wavespeed, self.right_wavespeed)
         
         self.depth_flux = fluxes[0]
