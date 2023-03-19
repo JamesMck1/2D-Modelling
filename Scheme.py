@@ -20,19 +20,16 @@ class cell():
     #Class variables
     g = 9.81 #gravitational acceleration (m/s^2)
     
-    def __init__(self, depth, x_momentum, y_momentum, cell_width, mannings_n):
+class interior_cell(cell):
+    
+    def __init__(self, depth, x_momentum, y_momentum, cell_width):
+        self.cell_width = cell_width
         self.depth = depth
         self.x_momentum = x_momentum
         self.y_momentum = y_momentum
         self.x_velocity = np.nan_to_num(x_momentum/depth)
         self.y_velocity = np.nan_to_num(y_momentum/depth)
-        self.cell_width = cell_width
-        self.mannings_n = mannings_n
-    
-class interior_cell(cell):
-    
-    def __init__(self, depth, x_momentum, y_momentum, cell_width):
-        super().__init__(depth, x_momentum, y_momentum, cell_width)
+        
         
     def assign_interfaces(self, x_interface_L, x_interface_R, y_interface_L, y_interface_R): #assign interface objects
         self.x_interface_L = x_interface_L #-ve x = left
@@ -58,27 +55,21 @@ class interior_cell(cell):
         self.depth = self.depth - (stable_tstep/self.cell_width)*(self.y_interface_L.depth_flux-self.y_interface_R.depth_flux) #updated depth = depth - dt/dx(F_L-F_R)
         self.y_momentum = self.y_momentum - (stable_tstep/self.cell_width)*(self.y_interface_L.momentum_flux-self.y_interface_R.momentum_flux) #updated depth = depth - dt/dx(F_L-F_R)
         
-class exterior_cell(cell): #ghost cell
-    
-    def __init__(self, depth, x_momentum, y_momentum, cell_width, mannings_n):
-        super().__init__(cell_width, mannings_n)
         
-class reflective_cell(exterior_cell): #reflective ghost cell
+class reflective_cell(cell): #reflective ghost cell
     
     def __init__(self, int_cell):
         self.cell_width = int_cell.cell_width
-        self.mannings_n = int_cell.mannings_n
         self.depth = int_cell.depth
         self.x_momentum = -int_cell.x_momentum
         self.y_momentum = -int_cell.y_momentum
         self.x_velocity = -int_cell.x_velocity
         self.y_velocity = -int_cell.y_velocity
         
-class transmissive_cell(exterior_cell): #transmissive ghost cell
+class transmissive_cell(cell): #transmissive ghost cell
     
     def __init__(self, int_cell):
         self.cell_width = int_cell.cell_width
-        self.mannings_n = int_cell.mannings_n
         self.depth = int_cell.depth
         self.x_momentum = int_cell.x_momentum
         self.y_momentum = int_cell.y_momentum
@@ -138,13 +129,14 @@ class y_interface(interface): #interface in the y-plane
         
 #Domain Object
 
-class Domain():
+class domain():
     
-    def __init__(self, rows, cols, init_depth, init_momentum_x, init_momentum_y, boundary_conditions):
+    def __init__(self, rows, cols, init_depth, init_momentum_x, init_momentum_y, boundary_conditions, cell_width):
         self.cells = [] #initialise list to store cell objects
         self.x_interfaces = [] #initialise list to store interface objects aligned with the x-axis
         self.y_interfaces = [] #initialise list to store interface objects aligned with the y-axis
         self.grid = (rows, cols) #number of cells in each row and column
+        self.cell_width = cell_width
         
         #initial condition list = list of array where each array represents the initial value for each row
         self.init_depth = init_depth
@@ -167,10 +159,10 @@ class Domain():
         Generate cells and store in a list, cell_i,j = cell list index [i][j]
         
         """
-        for iy in np.arange(0, self.grid[1]):
+        for ix in np.arange(0, self.grid[0]):
                 row = [] #Initialise an array to store cells in a row
-                for ix in np.arange(0, self.grid[0]):
-                    Cell = interior_cell() #Generate cell object
+                for iy in np.arange(0, self.grid[1]):
+                    Cell = interior_cell(self.init_depth[ix][iy], self.init_momentum_x[ix][iy], self.init_momentum_y[ix][iy], self.cell_width) #Generate cell object
                     row.append(Cell)
                     
                 self.cells.append(row)
@@ -184,11 +176,11 @@ class Domain():
         """ 
         north = [] #northern ghost cells
         for ix in np.arange(0, self.grid[0]):
-            if self.BCs_N[ix] == 0: #transmissive
+            if self.BCs_N[0][ix] == 0: #transmissive
                 Ghost_cell = transmissive_cell(self.cells[0][ix]) #northern
                 north.append(Ghost_cell)
                 
-            elif self.BCs_N[ix] == 1: #reflective
+            elif self.BCs_N[0][ix] == 1: #reflective
                 Ghost_cell = reflective_cell(self.cells[0][ix]) #northern
                 north.append(Ghost_cell)
             
@@ -197,11 +189,11 @@ class Domain():
         
         south = [] #southern ghost cells
         for ix in np.arange(0, self.grid[0]):
-            if self.BCs_N[ix] == 0: #transmissive
+            if self.BCs_S[0][ix] == 0: #transmissive
                 Ghost_cell = transmissive_cell(self.cells[-1][ix]) #northern
                 south.append(Ghost_cell)
                 
-            elif self.BCs_N[ix] == 1: #reflective
+            elif self.BCs_S[0][ix] == 1: #reflective
                 Ghost_cell = reflective_cell(self.cells[-1][ix]) #northern
                 south.append(Ghost_cell)
             
@@ -210,11 +202,11 @@ class Domain():
         
         east = [] #eastern ghost cells
         for iy in np.arange(0, self.grid[1]):
-            if self.BCs_N[iy] == 0: #transmissive
+            if self.BCs_E[0][iy] == 0: #transmissive
                 Ghost_cell = transmissive_cell(self.cells[iy][iy]) #northern
                 east.append(Ghost_cell)
                 
-            elif self.BCs_N[iy] == 1: #reflective
+            elif self.BCs_E[0][iy] == 1: #reflective
                 Ghost_cell = reflective_cell(self.cells[iy][iy]) #northern
                 east.append(Ghost_cell)
             
@@ -223,11 +215,11 @@ class Domain():
         
         west = [] #eastern ghost cells
         for iy in np.arange(0, self.grid[1]):
-            if self.BCs_N[iy] == 0: #transmissive
+            if self.BCs_W[0][iy] == 0: #transmissive
                 Ghost_cell = transmissive_cell(self.cells[iy][iy]) #northern
                 west.append(Ghost_cell)
                 
-            elif self.BCs_N[iy] == 1: #reflective
+            elif self.BCs_W[0][iy] == 1: #reflective
                 Ghost_cell = reflective_cell(self.cells[iy][iy]) #northern
                 west.append(Ghost_cell)
             
@@ -315,8 +307,18 @@ class Domain():
             for iy in np.arange(0, len(row)):
                 row[iy].update()
             
-            
-            
+###################################################################################################################################################################################
+# Numerical Scheme
+##################################################################################################################################################################################
+
+def scheme(rows, cols, init_depth, init_momentum_x, init_momentum_y, boundary_conditions, t_end, cell_width):
+    
+    Domain = domain(rows, cols, init_depth, init_momentum_x, init_momentum_y, boundary_conditions, cell_width)
+    Domain.generate_cells_and_interfaces()
+    
+    while Domain.sim_time <= t_end:
+        Domain.calculate_fluxes()
+        Domain.update_cells()
             
             
             
