@@ -50,11 +50,12 @@ class interior_cell(cell):
         #x-sweep
         self.depth = self.depth - (stable_tstep/self.cell_width)*(self.x_interface_L.depth_flux-self.x_interface_R.depth_flux) #updated depth = depth - dt/dx(F_L-F_R)
         self.x_momentum = self.x_momentum - (stable_tstep/self.cell_width)*(self.x_interface_L.momentum_flux-self.x_interface_R.momentum_flux) #updated depth = depth - dt/dx(F_L-F_R)
+        self.x_velocity = self.x_momentum/self.depth
         
         #y-sweep
         self.depth = self.depth - (stable_tstep/self.cell_width)*(self.y_interface_L.depth_flux-self.y_interface_R.depth_flux) #updated depth = depth - dt/dx(F_L-F_R)
         self.y_momentum = self.y_momentum - (stable_tstep/self.cell_width)*(self.y_interface_L.momentum_flux-self.y_interface_R.momentum_flux) #updated depth = depth - dt/dx(F_L-F_R)
-        
+        self.y_velocity = self.y_momentum/self.depth
         
 class reflective_cell(cell): #reflective ghost cell
     
@@ -152,6 +153,12 @@ class domain():
         self.tstep = 0 #initialise stable timestep
         self.sim_time = 0 #initialise counter for the simulation duration
         
+        #auditing
+        self.x_depth_fluxes = np.zeros((rows+1, cols))
+        self.y_depth_fluxes = np.zeros((rows, cols+1))
+        self.x_momentum_fluxes = np.zeros((rows+1, cols))
+        self.y_momentum_fluxes = np.zeros((rows, cols+1))
+        
     def generate_cells_and_interfaces(self):
         
         #Generate internal cells
@@ -243,10 +250,11 @@ class domain():
         self.x_interfaces.append(row)
         
         #middle rows
-        for ix in np.arange(0, self.grid[0]): #for each row of interfaces
+        for ix in np.arange(1, self.grid[0]): #for each row of interfaces
             row = []
             for iy in np.arange(0, self.grid[1]): #for each cell in the row of interfaces
-                Interface = x_interface(self.cells[ix][iy], self.cells[ix][iy+1])
+                Interface = x_interface(self.cells[ix-1][iy], self.cells[ix][iy])
+                row.append(Interface)
                 
             self.x_interfaces.append(row)
             
@@ -261,14 +269,14 @@ class domain():
         #y-sweep    
         for ix in np.arange(0, self.grid[0]):
             row = []
-            Interface = y_interface(self.Bcs[3][ix], self.cells[ix][0])
+            Interface = y_interface(self.BCs[3][ix], self.cells[ix][0])
             row.append(Interface)
             
-            for iy in np.arange(0, self.grid[1]):
-                Interface = y_interface(self.cells[ix][iy], self.cells[ix][iy+1])
+            for iy in np.arange(1, self.grid[1]):
+                Interface = y_interface(self.cells[ix][iy-1], self.cells[ix][iy])
                 row.append(Interface)
             
-            Interface = y_interface(self.cells[ix][-1], self.Bcs[3][ix])
+            Interface = y_interface(self.cells[ix][-1], self.BCs[3][ix])
             row.append(Interface)
             
             self.y_interfaces.append(row)
@@ -276,7 +284,7 @@ class domain():
         #Connect cells to interfaces
         for ix in np.arange(0, self.grid[0]):
             for iy in np.arange(0, self.grid[1]):
-                self.cells.assign_interfaces(self.x_interfaces[ix][iy], self.x_interfaces[ix][iy+1], self.y_interfaces[ix][iy], self.y_interfaces[ix][iy+1])
+                self.cells[ix][iy].assign_interfaces(self.x_interfaces[ix][iy], self.x_interfaces[ix+1][iy], self.y_interfaces[ix][iy], self.y_interfaces[ix][iy+1])
                 
         
     def calculate_fluxes(self):     
@@ -289,13 +297,19 @@ class domain():
                 row[iy].wavespeeds()
                 self.S_max = max(abs(row[iy].left_wavespeed), abs(row[iy].right_wavespeed), self.S_max)
                 row[iy].HLL_Solver()
-            
+                
+                self.x_depth_fluxes[ix][iy] = row[iy].depth_flux
+                self.x_momentum_fluxes[ix][iy] = row[iy].momentum_flux
+                
         for ix in np.arange(0, len(self.y_interfaces)):
-            row = self.y_interfaces[iy]
+            row = self.y_interfaces[ix]
             for iy in np.arange(0, len(row)):
                 row[iy].wavespeeds()
                 self.S_max = max(abs(row[iy].left_wavespeed), abs(row[iy].right_wavespeed), self.S_max)
-                row[iy].HLL_Solver()  
+                row[iy].HLL_Solver()
+                
+                self.y_depth_fluxes[ix][iy] = row[iy].depth_flux
+                self.y_momentum_fluxes[ix][iy] = row[iy].momentum_flux
     
     def update_cells(self):       
         
@@ -305,7 +319,7 @@ class domain():
         for ix in np.arange(0, len(self.cells)):
             row = self.cells[ix]
             for iy in np.arange(0, len(row)):
-                row[iy].update()
+                row[iy].update(self.tstep)
             
 ###################################################################################################################################################################################
 # Numerical Scheme
