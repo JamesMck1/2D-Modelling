@@ -48,13 +48,13 @@ class interior_cell(cell):
         """
         
         #x-sweep
-        self.depth = self.depth - (stable_tstep/self.cell_width)*(self.x_interface_L.depth_flux-self.x_interface_R.depth_flux) #updated depth = depth - dt/dx(F_L-F_R)
-        self.x_momentum = self.x_momentum - (stable_tstep/self.cell_width)*(self.x_interface_L.momentum_flux-self.x_interface_R.momentum_flux) #updated depth = depth - dt/dx(F_L-F_R)
+        self.depth = self.depth - (stable_tstep/self.cell_width)*(self.x_interface_R.depth_flux-self.x_interface_L.depth_flux) #updated depth = depth - dt/dx(F_L-F_R)
+        self.x_momentum = self.x_momentum - (stable_tstep/self.cell_width)*(self.x_interface_R.momentum_flux-self.x_interface_L.momentum_flux) #updated depth = depth - dt/dx(F_L-F_R)
         self.x_velocity = self.x_momentum/self.depth
         
         #y-sweep
-        self.depth = self.depth - (stable_tstep/self.cell_width)*(self.y_interface_L.depth_flux-self.y_interface_R.depth_flux) #updated depth = depth - dt/dx(F_L-F_R)
-        self.y_momentum = self.y_momentum - (stable_tstep/self.cell_width)*(self.y_interface_L.momentum_flux-self.y_interface_R.momentum_flux) #updated depth = depth - dt/dx(F_L-F_R)
+        self.depth = self.depth - (stable_tstep/self.cell_width)*(self.y_interface_R.depth_flux-self.y_interface_L.depth_flux) #updated depth = depth - dt/dx(F_L-F_R)
+        self.y_momentum = self.y_momentum - (stable_tstep/self.cell_width)*(self.y_interface_R.momentum_flux-self.y_interface_L.momentum_flux) #updated depth = depth - dt/dx(F_L-F_R)
         self.y_velocity = self.y_momentum/self.depth
         
 class reflective_cell(cell): #reflective ghost cell
@@ -95,7 +95,7 @@ class x_interface(interface): #interface in the x-plane
         
     def wavespeeds(self): #calculate wavespeeds
         
-        wavespeeds = HLL.Wavespeeds(self.g, self.left_cell.x_velocity, self.right_cell.x_velocity, self.left_cell.depth, self.right_cell.depth)
+        wavespeeds = HLL.Wavespeeds(self.g, self.left_cell.depth, self.right_cell.depth, self.left_cell.x_velocity, self.right_cell.x_velocity)
     
         self.left_wavespeed = wavespeeds[0]
         self.right_wavespeed = wavespeeds[1]
@@ -115,7 +115,7 @@ class y_interface(interface): #interface in the y-plane
         
     def wavespeeds(self): #calculate wavespeeds
         
-        wavespeeds = HLL.Wavespeeds(self.g, self.left_cell.y_velocity, self.right_cell.y_velocity, self.left_cell.depth, self.right_cell.depth)
+        wavespeeds = HLL.Wavespeeds(self.g, self.left_cell.depth, self.right_cell.depth, self.left_cell.y_velocity, self.right_cell.y_velocity)
     
         self.left_wavespeed = wavespeeds[0]
         self.right_wavespeed = wavespeeds[1]
@@ -158,6 +158,10 @@ class domain():
         self.y_depth_fluxes = np.zeros((rows, cols+1))
         self.x_momentum_fluxes = np.zeros((rows+1, cols))
         self.y_momentum_fluxes = np.zeros((rows, cols+1))
+        
+        self.depths = np.zeros((rows, cols)) 
+        self.x_momentums = np.zeros((rows, cols))
+        self.y_momentums = np.zeros((rows, cols))
         
     def generate_cells_and_interfaces(self):
         
@@ -320,6 +324,10 @@ class domain():
             row = self.cells[ix]
             for iy in np.arange(0, len(row)):
                 row[iy].update(self.tstep)
+                
+                self.depths[ix][iy] = row[iy].depth
+                self.x_momentums[ix][iy] = row[iy].x_momentum
+                self.y_momentums[ix][iy] = row[iy].y_momentum
             
 ###################################################################################################################################################################################
 # Numerical Scheme
