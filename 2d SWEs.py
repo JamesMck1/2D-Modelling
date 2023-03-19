@@ -33,11 +33,55 @@ class interior_cell(cell):
     
     def __init__(self, depth, x_momentum, y_momentum, cell_width):
         super().__init__(depth, x_momentum, y_momentum, cell_width)
-
-class exterior_cell(cell):
+        
+    def assign_interfaces(self, x_interface_L, x_interface_R, y_interface_L, y_interface_R): #assign interface objects
+        self.x_interface_L = x_interface_L #-ve x = left
+        self.x_interface_R = x_interface_R #+ve x = right
+        self.y_interface_L = y_interface_L #-ve y = left
+        self.y_interface_R = y_interface_R #+ve y = right
+        
+    def update(self, stable_tstep):
+        """
+        Use a strang splitting scheme to update the conserved variables in two dimensions
+        
+        0) Using stable timestep delta t = C*(delta x/S max), S max = max(|max(u,v)|+c)
+        1) Update in x-direction using initial condition U^n to give U^n+1/2
+        2) Update in y-direction using initial condition U^n+1/2 to give U^n+1
+        
+        """
+        
+        #x-sweep
+        self.depth = self.depth - (stable_tstep/self.cell_width)*(self.x_interface_L.depth_flux-self.x_interface_R.depth_flux) #updated depth = depth - dt/dx(F_L-F_R)
+        self.x_momentum = self.x_momentum - (stable_tstep/self.cell_width)*(self.x_interface_L.momentum_flux-self.x_interface_R.momentum_flux) #updated depth = depth - dt/dx(F_L-F_R)
+        
+        #y-sweep
+        self.depth = self.depth - (stable_tstep/self.cell_width)*(self.y_interface_L.depth_flux-self.y_interface_R.depth_flux) #updated depth = depth - dt/dx(F_L-F_R)
+        self.y_momentum = self.y_momentum - (stable_tstep/self.cell_width)*(self.y_interface_L.momentum_flux-self.y_interface_R.momentum_flux) #updated depth = depth - dt/dx(F_L-F_R)
+        
+class exterior_cell(cell): #ghost cell
     
     def __init__(self, depth, x_momentum, y_momentum, cell_width, mannings_n):
         super().__init__(cell_width, mannings_n)
+        
+class reflective_cell(exterior_cell): #reflective ghost cell
+    
+    def __init__(self, cell_width, mannings_n, int_cell):
+        super().__init__(cell_width, mannings_n)
+        self.depth = int_cell.depth
+        self.x_momentum = -int_cell.x_momentum
+        self.y_momentum = -int_cell.y_momentum
+        self.x_velocity = -int_cell.x_velocity
+        self.y_velocity = -int_cell.y_velocity
+        
+class transmissive_cell(exterior_cell): #transmissive ghost cell
+    
+    def __init__(self, cell_width, mannings_n, int_cell):
+        super().__init__(cell_width, mannings_n)
+        self.depth = int_cell.depth
+        self.x_momentum = int_cell.x_momentum
+        self.y_momentum = int_cell.y_momentum
+        self.x_velocity = int_cell.x_velocity
+        self.y_velocity = int_cell.y_velocity
         
 #Interface Objects
 
@@ -94,5 +138,41 @@ class y_interface(interface): #interface in the y-plane
 
 class Domain():
     
-    def __init__(self):
-        pass
+    def __init__(self, rows, cols, init_depth, init_momentum_x, init_momentum_y):
+        self.cells = [] #initialise list to store cell objects
+        self.interfaces = [] #initialise list to store interface objects
+        self.grid = (rows, cols) #number of cells in each row and column
+        
+        self.init_depth = init_depth
+        self.init_momentum_x = init_momentum_x
+        self.init_momentum_y = init_momentum_y
+        
+    def generate_cells_and_interfaces(self):
+        
+        #Generate internal cells
+        """
+        Generate cells and store in a list
+        
+        """
+        for iy in np.arange(0, self.grid[1]):
+                row = [] #initialise an array to store cells in a row
+                for ix in np.arange(0, self.grid[0]):
+                    Cell = cell()
+                
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
