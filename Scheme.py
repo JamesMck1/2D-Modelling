@@ -30,7 +30,6 @@ class interior_cell(cell):
         self.x_velocity = np.nan_to_num(x_momentum/depth)
         self.y_velocity = np.nan_to_num(y_momentum/depth)
         
-        
     def assign_interfaces(self, x_interface_L, x_interface_R, y_interface_L, y_interface_R): #assign interface objects
         self.x_interface_L = x_interface_L #-ve x = left
         self.x_interface_R = x_interface_R #+ve x = right
@@ -60,12 +59,10 @@ class interior_cell(cell):
 class reflective_cell(cell): #reflective ghost cell
     
     def __init__(self, int_cell):
-        self.cell_width = int_cell.cell_width
-        self.depth = int_cell.depth
-        self.x_momentum = -int_cell.x_momentum
-        self.y_momentum = -int_cell.y_momentum
-        self.x_velocity = -int_cell.x_velocity
-        self.y_velocity = -int_cell.y_velocity
+        self.int_cell = int_cell
+    
+    def __getattr__(self, attr):
+        return getattr(self.int_cell, attr)
         
 class transmissive_cell(cell): #transmissive ghost cell
     
@@ -162,6 +159,8 @@ class domain():
         self.depths = np.zeros((rows, cols)) 
         self.x_momentums = np.zeros((rows, cols))
         self.y_momentums = np.zeros((rows, cols))
+        
+        self.masses = [np.sum(self.init_depth)]
         
     def generate_cells_and_interfaces(self):
         
@@ -289,12 +288,12 @@ class domain():
         for ix in np.arange(0, self.grid[0]):
             for iy in np.arange(0, self.grid[1]):
                 self.cells[ix][iy].assign_interfaces(self.x_interfaces[ix][iy], self.x_interfaces[ix+1][iy], self.y_interfaces[ix][iy], self.y_interfaces[ix][iy+1])
-                
         
     def calculate_fluxes(self):     
         
         self.S_max = 0
         
+        #across interfaces aligned with the x-axis
         for ix in np.arange(0, len(self.x_interfaces)):
             row = self.x_interfaces[ix]
             for iy in np.arange(0, len(row)):
@@ -304,7 +303,8 @@ class domain():
                 
                 self.x_depth_fluxes[ix][iy] = row[iy].depth_flux
                 self.x_momentum_fluxes[ix][iy] = row[iy].momentum_flux
-                
+        
+        #across interfaces aligned with the y-axis                
         for ix in np.arange(0, len(self.y_interfaces)):
             row = self.y_interfaces[ix]
             for iy in np.arange(0, len(row)):
@@ -328,6 +328,13 @@ class domain():
                 self.depths[ix][iy] = row[iy].depth
                 self.x_momentums[ix][iy] = row[iy].x_momentum
                 self.y_momentums[ix][iy] = row[iy].y_momentum
+        
+        print(f't = {self.sim_time}')
+        
+    def mass_conservation_check(self):
+        
+        self.masses.append(np.sum(self.depths)) 
+        
             
 ###################################################################################################################################################################################
 # Numerical Scheme

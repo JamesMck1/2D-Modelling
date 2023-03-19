@@ -51,7 +51,21 @@ class Cell():
     def update(self):
         self.h = self.h + 0.5*(self.int_L.f1 - self.int_R.f1)
         self.u = self.h + 0.5*(self.int_L.f2 - self.int_R.f2)
-        
+
+class Clones():
+    
+    def __init__(self, Cell):
+        self.Cell = Cell
+    
+    def __getattr__(self, attr):
+        return getattr(self.Cell, attr)
+    
+class Clones_2():
+    
+    def __init__(self, Cell):
+        self.h = Cell.h
+        self.u = Cell.u
+
 class Interface():
     
     def __init__(self, left_cell, right_cell):
@@ -65,11 +79,14 @@ class Interface():
 cell_1 = Cell(4,0)
 cell_2 = Cell(4,2)
 cell_3 = Cell(1,3)
+Clone = Clones(cell_2)
+Clone_2 = Clones_2(cell_2)
 Int_1 = Interface(cell_1, cell_2)
 Int_2 = Interface(cell_2, cell_3)
 cell_2.assign_interface(Int_1, Int_2)
 Int_1.fluxes()
 Int_2.fluxes()
 cell_2.update()
-    
+
+print(Clone.Cell.h, Clone_2.h, Clone.h)    
     
