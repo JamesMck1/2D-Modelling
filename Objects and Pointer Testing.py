@@ -56,9 +56,15 @@ class Clones():
     
     def __init__(self, Cell):
         self.Cell = Cell
+        self.h = self.Cell.h
+        self.u = self.Cell.u
     
-    def __getattr__(self, attr):
-        return getattr(self.Cell, attr)
+    #def __getattr__(self, attr):
+    #    return getattr(self.Cell, attr)
+    
+    def update(self):
+        self.h = self.Cell.h
+        self.u = self.Cell.u
     
 class Clones_2():
     
@@ -87,6 +93,10 @@ cell_2.assign_interface(Int_1, Int_2)
 Int_1.fluxes()
 Int_2.fluxes()
 cell_2.update()
+
+print(Clone.h, Clone.u)
+
+Clone.update()
 
 print(Clone.Cell.h, Clone_2.h, Clone.h)    
     

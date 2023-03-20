@@ -46,33 +46,49 @@ class interior_cell(cell):
         
         """
         
-        #x-sweep
-        self.depth = self.depth - (stable_tstep/self.cell_width)*(self.x_interface_R.depth_flux-self.x_interface_L.depth_flux) #updated depth = depth - dt/dx(F_L-F_R)
-        self.x_momentum = self.x_momentum - (stable_tstep/self.cell_width)*(self.x_interface_R.momentum_flux-self.x_interface_L.momentum_flux) #updated depth = depth - dt/dx(F_L-F_R)
+        #x-sweep (update variables in the x-direction across perpendicular interfaces aligned with the y-axis)
+        self.depth = self.depth + (stable_tstep/self.cell_width)*(self.y_interface_L.depth_flux-self.y_interface_R.depth_flux) #updated depth = depth - dt/dx(F_L-F_R)
+        self.x_momentum = self.x_momentum + (stable_tstep/self.cell_width)*(self.y_interface_L.momentum_flux-self.y_interface_R.momentum_flux) #updated depth = depth - dt/dx(F_L-F_R)
         self.x_velocity = self.x_momentum/self.depth
         
-        #y-sweep
-        self.depth = self.depth - (stable_tstep/self.cell_width)*(self.y_interface_R.depth_flux-self.y_interface_L.depth_flux) #updated depth = depth - dt/dx(F_L-F_R)
-        self.y_momentum = self.y_momentum - (stable_tstep/self.cell_width)*(self.y_interface_R.momentum_flux-self.y_interface_L.momentum_flux) #updated depth = depth - dt/dx(F_L-F_R)
+        #y-sweep (update variables in the y-direction across perpendicular interfaces aligned with the x-axis)
+        self.depth = self.depth + (stable_tstep/self.cell_width)*(self.x_interface_L.depth_flux-self.x_interface_R.depth_flux) #updated depth = depth - dt/dx(F_L-F_R)
+        self.y_momentum = self.y_momentum + (stable_tstep/self.cell_width)*(self.x_interface_L.momentum_flux-self.x_interface_R.momentum_flux) #updated depth = depth - dt/dx(F_L-F_R)
         self.y_velocity = self.y_momentum/self.depth
         
 class reflective_cell(cell): #reflective ghost cell
     
-    def __init__(self, int_cell):
-        self.int_cell = int_cell
+    def __init__(self, Cell):
+        self.Cell = Cell
+        self.depth = self.Cell.depth
+        self.x_momentum = -self.Cell.x_momentum
+        self.y_momentum = -self.Cell.y_momentum
+        self.x_velocity = -self.Cell.x_velocity
+        self.y_velocity = -self.Cell.y_velocity
     
-    def __getattr__(self, attr):
-        return getattr(self.int_cell, attr)
+    def update(self):
+        self.depth = self.Cell.depth
+        self.x_momentum = -self.Cell.x_momentum
+        self.y_momentum = -self.Cell.y_momentum
+        self.x_velocity = -self.Cell.x_velocity
+        self.y_velocity = -self.Cell.y_velocity
         
 class transmissive_cell(cell): #transmissive ghost cell
     
-    def __init__(self, int_cell):
-        self.cell_width = int_cell.cell_width
-        self.depth = int_cell.depth
-        self.x_momentum = int_cell.x_momentum
-        self.y_momentum = int_cell.y_momentum
-        self.x_velocity = int_cell.x_velocity
-        self.y_velocity = int_cell.y_velocity
+    def __init__(self, Cell):
+        self.Cell = Cell
+        self.depth = self.Cell.depth
+        self.x_momentum = self.Cell.x_momentum
+        self.y_momentum = self.Cell.y_momentum
+        self.x_velocity = self.Cell.x_velocity
+        self.y_velocity = self.Cell.y_velocity
+    
+    def update(self):
+        self.depth = self.Cell.depth
+        self.x_momentum = self.Cell.x_momentum
+        self.y_momentum = self.Cell.y_momentum
+        self.x_velocity = self.Cell.x_velocity
+        self.y_velocity = self.Cell.y_velocity
         
 #Interface Objects
 
@@ -185,52 +201,52 @@ class domain():
         
         """ 
         north = [] #northern ghost cells
-        for ix in np.arange(0, self.grid[0]):
-            if self.BCs_N[0][ix] == 0: #transmissive
-                Ghost_cell = transmissive_cell(self.cells[0][ix]) #northern
+        for iy in np.arange(0, self.grid[1]):
+            if self.BCs_N[0][iy] == 0: #transmissive
+                Ghost_cell = transmissive_cell(self.cells[0][iy]) #northern
                 north.append(Ghost_cell)
                 
-            elif self.BCs_N[0][ix] == 1: #reflective
-                Ghost_cell = reflective_cell(self.cells[0][ix]) #northern
+            elif self.BCs_N[0][iy] == 1: #reflective
+                Ghost_cell = reflective_cell(self.cells[0][iy]) #northern
                 north.append(Ghost_cell)
             
             else: #invalid boundary condition
                 print('Invalid Boundary Condition, Boundary condition should be formatted as an integer')
         
         south = [] #southern ghost cells
-        for ix in np.arange(0, self.grid[0]):
-            if self.BCs_S[0][ix] == 0: #transmissive
-                Ghost_cell = transmissive_cell(self.cells[-1][ix]) #northern
+        for iy in np.arange(0, self.grid[1]):
+            if self.BCs_S[0][iy] == 0: #transmissive
+                Ghost_cell = transmissive_cell(self.cells[-1][iy]) #northern
                 south.append(Ghost_cell)
                 
-            elif self.BCs_S[0][ix] == 1: #reflective
-                Ghost_cell = reflective_cell(self.cells[-1][ix]) #northern
+            elif self.BCs_S[0][iy] == 1: #reflective
+                Ghost_cell = reflective_cell(self.cells[-1][iy]) #northern
                 south.append(Ghost_cell)
             
             else: #invalid boundary condition
                 print('Invalid Boundary Condition, Boundary condition should be formatted as an integer')
         
         east = [] #eastern ghost cells
-        for iy in np.arange(0, self.grid[1]):
-            if self.BCs_E[0][iy] == 0: #transmissive
-                Ghost_cell = transmissive_cell(self.cells[iy][iy]) #northern
+        for ix in np.arange(0, self.grid[0]):
+            if self.BCs_E[0][ix] == 0: #transmissive
+                Ghost_cell = transmissive_cell(self.cells[ix][-1]) #northern
                 east.append(Ghost_cell)
                 
-            elif self.BCs_E[0][iy] == 1: #reflective
-                Ghost_cell = reflective_cell(self.cells[iy][iy]) #northern
+            elif self.BCs_E[0][ix] == 1: #reflective
+                Ghost_cell = reflective_cell(self.cells[ix][-1]) #northern
                 east.append(Ghost_cell)
             
             else: #invalid boundary condition
                 print('Invalid Boundary Condition, Boundary condition should be formatted as an integer') 
         
-        west = [] #eastern ghost cells
-        for iy in np.arange(0, self.grid[1]):
-            if self.BCs_W[0][iy] == 0: #transmissive
-                Ghost_cell = transmissive_cell(self.cells[iy][iy]) #northern
+        west = [] #western ghost cells
+        for ix in np.arange(0, self.grid[0]):
+            if self.BCs_W[0][ix] == 0: #transmissive
+                Ghost_cell = transmissive_cell(self.cells[ix][0]) #northern
                 west.append(Ghost_cell)
                 
-            elif self.BCs_W[0][iy] == 1: #reflective
-                Ghost_cell = reflective_cell(self.cells[iy][iy]) #northern
+            elif self.BCs_W[0][ix] == 1: #reflective
+                Ghost_cell = reflective_cell(self.cells[ix][0]) #northern
                 west.append(Ghost_cell)
             
             else: #invalid boundary condition
@@ -247,7 +263,7 @@ class domain():
         #first row
         row = []
         for iy in np.arange(0, self.grid[1]): #for each cell in the first row of interfaces (northern boundary)
-            Interface = x_interface(self.BCs[0][iy], self.cells[0][iy])
+            Interface = x_interface(self.BCs[0][iy], self.cells[0][iy]) #left cell = northern ghost cell, right cell = northern internal cell
             row.append(Interface)
         
         self.x_interfaces.append(row)
@@ -256,7 +272,7 @@ class domain():
         for ix in np.arange(1, self.grid[0]): #for each row of interfaces
             row = []
             for iy in np.arange(0, self.grid[1]): #for each cell in the row of interfaces
-                Interface = x_interface(self.cells[ix-1][iy], self.cells[ix][iy])
+                Interface = x_interface(self.cells[ix-1][iy], self.cells[ix][iy]) 
                 row.append(Interface)
                 
             self.x_interfaces.append(row)
@@ -264,7 +280,7 @@ class domain():
         #last row
         row = []
         for iy in np.arange(0, self.grid[1]): #for each cell in the last row of interfaces (southern boundary)
-            Interface = x_interface(self.BCs[2][iy], self.cells[-1][iy])
+            Interface = x_interface(self.cells[-1][iy], self.BCs[2][iy]) #left cell = southern internal cell, right cell = southern ghost cell
             row.append(Interface) 
             
         self.x_interfaces.append(row)    
@@ -272,14 +288,14 @@ class domain():
         #y-sweep    
         for ix in np.arange(0, self.grid[0]):
             row = []
-            Interface = y_interface(self.BCs[3][ix], self.cells[ix][0])
+            Interface = y_interface(self.BCs[3][ix], self.cells[ix][0]) #left cell = western ghost cell, right cell = first internal cell
             row.append(Interface)
             
             for iy in np.arange(1, self.grid[1]):
                 Interface = y_interface(self.cells[ix][iy-1], self.cells[ix][iy])
                 row.append(Interface)
             
-            Interface = y_interface(self.cells[ix][-1], self.BCs[3][ix])
+            Interface = y_interface(self.cells[ix][-1], self.BCs[1][ix]) #left cell = last internal cell, right cell = eastern ghost cell
             row.append(Interface)
             
             self.y_interfaces.append(row)
@@ -291,25 +307,27 @@ class domain():
         
     def calculate_fluxes(self):     
         
-        self.S_max = 0
+        self.Sy_max = 0
         
         #across interfaces aligned with the x-axis
         for ix in np.arange(0, len(self.x_interfaces)):
             row = self.x_interfaces[ix]
             for iy in np.arange(0, len(row)):
                 row[iy].wavespeeds()
-                self.S_max = max(abs(row[iy].left_wavespeed), abs(row[iy].right_wavespeed), self.S_max)
+                self.Sy_max = max(abs(row[iy].left_wavespeed), abs(row[iy].right_wavespeed), self.Sy_max)
                 row[iy].HLL_Solver()
                 
                 self.x_depth_fluxes[ix][iy] = row[iy].depth_flux
                 self.x_momentum_fluxes[ix][iy] = row[iy].momentum_flux
+        
+        self.Sx_max = 0
         
         #across interfaces aligned with the y-axis                
         for ix in np.arange(0, len(self.y_interfaces)):
             row = self.y_interfaces[ix]
             for iy in np.arange(0, len(row)):
                 row[iy].wavespeeds()
-                self.S_max = max(abs(row[iy].left_wavespeed), abs(row[iy].right_wavespeed), self.S_max)
+                self.Sx_max = max(abs(row[iy].left_wavespeed), abs(row[iy].right_wavespeed), self.Sx_max)
                 row[iy].HLL_Solver()
                 
                 self.y_depth_fluxes[ix][iy] = row[iy].depth_flux
@@ -317,7 +335,7 @@ class domain():
     
     def update_cells(self):       
         
-        self.tstep = (0.95*self.cell_width)/(self.S_max)
+        self.tstep = (0.95*self.cell_width)/(self.Sx_max+self.Sy_max)
         self.sim_time += self.tstep
         
         for ix in np.arange(0, len(self.cells)):
@@ -328,6 +346,11 @@ class domain():
                 self.depths[ix][iy] = row[iy].depth
                 self.x_momentums[ix][iy] = row[iy].x_momentum
                 self.y_momentums[ix][iy] = row[iy].y_momentum
+                
+        for ix in np.arange(0, len(self.BCs)):
+            row = self.BCs[ix]
+            for iy in np.arange(0, len(row)):
+                row[iy].update()
         
         print(f't = {self.sim_time}')
         
